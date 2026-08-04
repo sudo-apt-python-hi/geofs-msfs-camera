@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GeoFS Cinematic Camera v3
 // @namespace    GeoFS
-// @version      3.0.0
+// @version      3.0.1
 // @description  Lightweight cinematic follow camera for GeoFS
 // @match        https://*.geo-fs.com/*
 // @match        https://geo-fs.com/*
@@ -34,6 +34,10 @@ const SETTINGS = {
     accelerationInfluence: 0.030,
     brakingInfluence: 0.045,
     verticalInfluence: 0.030,
+
+    baseFOV: 1.40,
+    speedFOV: 1.80,
+    fovSmoothing: 0.04,
 
     // Spring
     springStrength: 0.12,
@@ -91,6 +95,9 @@ const state = {
 
     gForceOffset: 0,
 
+    fov: SETTINGS.baseFOV,
+    targetFOV: SETTINGS.baseFOV,
+
     // smoothed camera values
 
     distance: SETTINGS.baseDistance,
@@ -109,6 +116,9 @@ lastRoll: 0,
     // Landing
 wasGrounded: true,
 landingVelocity: 0,
+
+dynamicSpringStrength: SETTINGS.springStrength,
+dynamicSpringDamping: SETTINGS.springDamping,
 
 // Inertial offsets
 rotationX: 0,
@@ -223,10 +233,10 @@ function updateSpring(positionKey, velocityKey, target) {
 
     state[velocityKey] +=
         (target - state[positionKey]) *
-        SETTINGS.springStrength;
+        state.dynamicSpringStrength;
 
     state[velocityKey] *=
-        SETTINGS.springDamping;
+        state.dynamicSpringDamping;
 
     state[positionKey] +=
         state[velocityKey];
@@ -269,6 +279,61 @@ function updateSpeed(data) {
             state.height,
             state.targetHeight,
             SETTINGS.smoothing
+        );
+
+}
+    function updateFOV(data) {
+
+    const speed =
+        clamp(
+            (data.airspeedms - 25) / 140,
+            0,
+            1
+        );
+
+    // Ease-in curve
+    const curve = speed * speed;
+
+    state.targetFOV =
+        lerp(
+            SETTINGS.baseFOV,
+            SETTINGS.speedFOV,
+            curve
+        );
+
+    state.fov =
+        lerp(
+            state.fov,
+            state.targetFOV,
+            SETTINGS.fovSmoothing
+        );
+
+    geofs.camera.setFOV(state.fov);
+}
+    function updateDynamicSpring(data) {
+
+    const speed =
+        clamp(
+            data.airspeedms / 120,
+            0,
+            1
+        );
+
+    // Make the curve stronger
+    const curve = speed * speed;
+
+    state.dynamicSpringStrength =
+        lerp(
+            0.09,
+            0.18,
+            curve
+        );
+
+    state.dynamicSpringDamping =
+        lerp(
+            0.80,
+            0.92,
+            curve
         );
 
 }
@@ -418,6 +483,10 @@ function updateCamera() {
         return;
 
     updateSpeed(data);
+
+    updateFOV(data);
+
+    updateDynamicSpring(data);
 
     updateMotion();
 
