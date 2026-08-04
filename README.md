@@ -1,6 +1,6 @@
 # GeoFS Cinematic Camera
 
-A lightweight cinematic follow camera for **GeoFS** that adds smooth, realistic camera movement inspired by modern flight simulators.
+A lightweight cinematic follow camera for **GeoFS** that adds smooth, realistic camera movement inspired by modern flight simulators made by **GPT 5.4 mini.**
 
 ## Features
 
