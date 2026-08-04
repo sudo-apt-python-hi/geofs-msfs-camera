@@ -80,7 +80,9 @@ If you're using the browser console, simply paste the latest version again after
 
 # Contributing
 
-Contribution suggentions are always welcome, but please note not many of them will make to the final product.
+Contributions, suggestions, bug reports, and feature requests are always welcome!
+
+Feel free to open an Issue or submit a Pull Request.
 
 ---
 
