@@ -14,6 +14,10 @@ A lightweight cinematic follow camera for **GeoFS** that adds smooth, realistic 
 
 ---
 
+# WARNING:
+
+This script only works with the Boeing 737-700. Using other planes with this script will kinda break this script.
+
 # Installation
 
 There are two ways to use the script.
@@ -84,6 +88,10 @@ Contributions, suggestions, bug reports, and feature requests are always welcome
 
 Feel free to open an Issue or submit a Pull Request.
 
+# Known Issues:
+* Manually using scroll wheel to change FOV will not work
+* Pulling up and down rapidly will cause the camera to spring wildly
+* When the crosswind angle changes from hitting the left side of your plane to the right (or vice versa) the camera will spring a little bit
 ---
 
 # Disclaimer
