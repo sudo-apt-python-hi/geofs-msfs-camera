@@ -58,6 +58,8 @@ Works seamlessly with GeoFS's built-in **Follow Camera** mode without replacing 
 
 Currently optimized for the **Boeing 737-700**.
 
+Some other aircrafts, like the **Concorde** are functional, but may exhibit spring movement until aircraft-specific tuning is added.
+
 Using other aircraft may result in incorrect camera positioning or unexpected behavior, as camera tuning has only been calibrated for the 737-700.
 
 ---
