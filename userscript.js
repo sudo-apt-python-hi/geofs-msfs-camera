@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GeoFS Cinematic Camera v3
 // @namespace    GeoFS
-// @version      3.0.1
+// @version      3.3.0
 // @description  Lightweight cinematic follow camera for GeoFS
 // @match        https://*.geo-fs.com/*
 // @match        https://geo-fs.com/*
@@ -35,9 +35,16 @@ const SETTINGS = {
     brakingInfluence: 0.045,
     verticalInfluence: 0.030,
 
+// Dynamic FOV
     baseFOV: 1.40,
-    speedFOV: 1.80,
+    maxFOVBonus: 0.20,
     fovSmoothing: 0.04,
+
+    speedFOVWeight: 0.45,
+    throttleFOVWeight: 0.20,
+    gForceFOVWeight: 0.25,
+    verticalFOVWeight: 0.10,
+    maxDistanceBonus: 3,
 
     // Spring
     springStrength: 0.12,
@@ -46,6 +53,11 @@ const SETTINGS = {
     crosswindStrength: 2.0,// maximum sideways offset (meters)
     crosswindSmoothing: 0.03,
     maxCrosswindSpeed: 40,// m/s wind needed for full effect
+    // Cinematic turn orbit
+    bankOrbitStrength: 0.06,// meters per degree of bank
+    yawOrbitStrength: 0.20,// extra swing during quick turns
+    maxOrbit: 6,// never move farther than this
+    orbitSmoothing: 0.06,
     // Rotation lag
     rotationSmoothing: 0.08,
     rollInfluence: 0.40,
@@ -98,6 +110,10 @@ const state = {
     fov: SETTINGS.baseFOV,
     targetFOV: SETTINGS.baseFOV,
 
+    baseFOV: null,
+    lastAppliedFOV: null,
+    distanceBonus: 0,
+
     // smoothed camera values
 
     distance: SETTINGS.baseDistance,
@@ -105,6 +121,7 @@ const state = {
     // Crosswind drift
     cameraOrbit: 0,
     targetCameraOrbit: 0,
+    turnOrbit: 0,
     // Rotation lag
 heading: 0,
 pitch: 0,
@@ -137,12 +154,10 @@ targetRoll: 0
 
 function updateCrosswind(data) {
 
-    // Relative wind angle
+    // Wind contribution
     const windAngle =
         (data.relativeWind || 0) * Math.PI / 180;
 
-    // -1 = wind from left
-    // +1 = wind from right
     const crosswind =
         Math.sin(windAngle);
 
@@ -153,26 +168,49 @@ function updateCrosswind(data) {
             0,
             1
         );
-    const airspeedFactor =
-    clamp(
-        (data.airspeedms - 20) / 60,
-        0,
-        1
-    );
 
-state.targetCameraOrbit =
-    -crosswind *
-    windStrength *
-    airspeedFactor *
-    SETTINGS.crosswindStrength;
+    // Aircraft attitude
+    const htr =
+        geofs.aircraft.instance.object3d.htr;
+
+    const bank = htr[2];
+
+    // Heading rate
+    let headingRate =
+        htr[0] - state.lastHeading;
+
+    if (headingRate > 180) headingRate -= 360;
+    if (headingRate < -180) headingRate += 360;
+
+    // Orbit contributions
+    const windOrbit =
+        -crosswind *
+        windStrength *
+        SETTINGS.crosswindStrength;
+
+    const bankOrbit =
+        bank *
+        SETTINGS.bankOrbitStrength;
+
+    const yawOrbit =
+        headingRate *
+        SETTINGS.yawOrbitStrength;
+
+    state.targetCameraOrbit =
+        clamp(
+            windOrbit +
+            bankOrbit +
+            yawOrbit,
+            -SETTINGS.maxOrbit,
+             SETTINGS.maxOrbit
+        );
 
     state.cameraOrbit =
         lerp(
             state.cameraOrbit,
             state.targetCameraOrbit,
-            SETTINGS.crosswindSmoothing
+            SETTINGS.orbitSmoothing
         );
-
 }
     function updateRotationLag() {
 
@@ -261,7 +299,8 @@ function updateSpeed(data) {
 
     state.targetDistance =
         SETTINGS.baseDistance +
-        curve * SETTINGS.speedDistance;
+        curve * SETTINGS.speedDistance +
+        state.distanceBonus;
 
     state.targetHeight =
         SETTINGS.baseHeight +
@@ -282,7 +321,21 @@ function updateSpeed(data) {
         );
 
 }
-    function updateFOV(data) {
+function updateFOV(data) {
+
+    // User changed FOV?
+    if (
+        Math.abs(
+            geofs.camera.currentFOV -
+            (state.lastAppliedFOV ?? state.fov)
+        ) > 0.02
+    ) {
+        state.baseFOV = geofs.camera.currentFOV;
+    }
+
+    // --------------------------
+    // Speed
+    // --------------------------
 
     const speed =
         clamp(
@@ -291,15 +344,68 @@ function updateSpeed(data) {
             1
         );
 
-    // Ease-in curve
-    const curve = speed * speed;
+    // --------------------------
+    // Throttle
+    // --------------------------
+
+    const throttle =
+        clamp(
+            data.throttle || 0,
+            0,
+            1
+        );
+
+    // --------------------------
+    // G Force
+    // --------------------------
+
+    const g =
+        clamp(
+            Math.abs(data.loadFactor - 1) / 2,
+            0,
+            1
+        );
+
+    // --------------------------
+    // Vertical speed
+    // --------------------------
+
+    const vertical =
+        clamp(
+            Math.abs(
+                geofs.aircraft.instance
+                ?.rigidBody
+                ?.velocity?.[2] || 0
+            ) / 40,
+            0,
+            1
+        );
+
+    // --------------------------
+    // Combine everything
+    // --------------------------
+
+    const energy =
+
+        speed * SETTINGS.speedFOVWeight +
+
+        throttle * SETTINGS.throttleFOVWeight +
+
+        g * SETTINGS.gForceFOVWeight +
+
+        vertical * SETTINGS.verticalFOVWeight;
+
+    state.distanceBonus =
+    lerp(
+        state.distanceBonus,
+        energy * SETTINGS.maxDistanceBonus,
+        SETTINGS.fovSmoothing
+    );
 
     state.targetFOV =
-        lerp(
-            SETTINGS.baseFOV,
-            SETTINGS.speedFOV,
-            curve
-        );
+        state.baseFOV +
+        energy *
+        SETTINGS.maxFOVBonus;
 
     state.fov =
         lerp(
@@ -309,6 +415,8 @@ function updateSpeed(data) {
         );
 
     geofs.camera.setFOV(state.fov);
+
+    state.lastAppliedFOV = state.fov;
 }
     function updateDynamicSpring(data) {
 
@@ -488,6 +596,8 @@ function updateCamera() {
 
     updateDynamicSpring(data);
 
+    updateRotationLag();
+
     updateMotion();
 
     updateLanding(data);
@@ -543,6 +653,8 @@ function initialize() {
         ) {
 
             clearInterval(wait);
+            state.baseFOV = geofs.camera.currentFOV;
+            state.fov = state.baseFOV;
             geofs.api.addFrameCallback(updateCamera);
 
             console.log("GeoFS Cinematic Camera v3 loaded.");
