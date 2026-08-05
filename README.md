@@ -88,9 +88,7 @@ Contributions, suggestions, bug reports, and feature requests are always welcome
 
 Feel free to open an Issue or submit a Pull Request.
 
-# Known Issues:
-* Manually using scroll wheel to change FOV will not work
-* Pulling up and down rapidly will cause the camera to spring wildly
+# Known Issue(s):
 * When the crosswind angle changes from hitting the left side of your plane to the right (or vice versa) the camera will spring a little bit
 ---
 
