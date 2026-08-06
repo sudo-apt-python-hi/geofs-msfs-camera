@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GeoFS Cinematic Camera v3
 // @namespace    GeoFS
-// @version      4.0.0
+// @version      3.3.0
 // @description  Lightweight cinematic follow camera for GeoFS
 // @match        https://*.geo-fs.com/*
 // @match        https://geo-fs.com/*
@@ -215,13 +215,13 @@ concorde: createProfile({
         distance: 52,
         speedDistance: 14,
         height: 7,
-        speedHeight: 3
+        speedHeight: 2
     },
 
     motion: {
         acceleration: 0.018,
-        braking: 0.025,
-        vertical: 0.018
+        braking: 0.022,
+        vertical: 0.016
     },
 
     spring: {
@@ -229,25 +229,149 @@ concorde: createProfile({
         damping: 0.92
     },
 
+    orbit: {
+        bank: 0.03,
+        yaw: 0.07,
+        max: 2.5
+    },
+
+    rotation: {
+        pitchLag: 0.020,
+        rollLag: 0.030,
+        yawLag: 0.018
+    },
+
+    fov: {
+        maxBonus: 0.28,
+        maxDistanceBonus: 3
+    },
+}),
+
+    a350: createProfile({
+
+    follow: {
+        distance: 70,
+        speedDistance: 18,
+        height: 7,
+        speedHeight: 3
+    },
+
+    motion: {
+        acceleration: 0.020,
+        braking: 0.028,
+        vertical: 0.018
+    },
+
+    spring: {
+        strength: 0.075,
+        damping: 0.93
+    },
+
     crosswind: {
-        strength: 1.0
+        strength: 1.3
     },
 
     orbit: {
-        bank: 0.035,
-        yaw: 0.08,
+        bank: 0.045,
+        yaw: 0.13,
+        max: 4
+    },
+
+    rotation: {
+        pitchLag: 0.040,
+        rollLag: 0.050,
+        yawLag: 0.030
+    },
+
+    fov: {
+        maxBonus: 0.20,
+        maxDistanceBonus: 3
+    }
+
+}),
+
+    b777: createProfile({
+
+    follow: {
+        distance: 65,
+        speedDistance: 19,
+        height: 7,
+        speedHeight: 3
+    },
+
+    motion: {
+        acceleration: 0.024,
+        braking: 0.030,
+        vertical: 0.020
+    },
+
+    spring: {
+        strength: 0.080,
+        damping: 0.92
+    },
+
+    crosswind: {
+        strength: 1.5
+    },
+
+    orbit: {
+        bank: 0.050,
+        yaw: 0.15,
+        max: 4.5
+    },
+
+    rotation: {
+        pitchLag: 0.045,
+        rollLag: 0.055,
+        yawLag: 0.035
+    },
+
+    fov: {
+        maxBonus: 0.22,
+        maxDistanceBonus: 3.5
+    }
+
+}),
+
+    a380: createProfile({
+
+    follow: {
+        distance: 67,
+        speedDistance: 16,
+        height: 8,
+        speedHeight: 2
+    },
+
+    motion: {
+        acceleration: 0.016,
+        braking: 0.022,
+        vertical: 0.014
+    },
+
+    spring: {
+        strength: 0.055,
+        damping: 0.94
+    },
+
+    crosswind: {
+        strength: 1.2
+    },
+
+    orbit: {
+        bank: 0.030,
+        yaw: 0.10,
         max: 3
     },
 
     rotation: {
-        pitchLag: 0.025,
-        rollLag: 0.035,
-        yawLag: 0.02
+        pitchLag: 0.018,
+        rollLag: 0.025,
+        yawLag: 0.015
     },
 
     fov: {
-        maxBonus: 0.30,
-        maxDistanceBonus: 3
+        maxBonus: 0.18,
+        maxDistanceBonus: 2.5
     }
 
 }),
@@ -328,6 +452,20 @@ function updateAircraftProfile() {
         return;
 
     }
+    if (/A350/i.test(name)) {
+        currentProfile = AIRCRAFT_PROFILES.a350;
+        return;
+    }
+
+    if (/777-300ER|777 300ER|777-300/i.test(name)) {
+        currentProfile = AIRCRAFT_PROFILES.b777;
+        return;
+    }
+    if (/A380/i.test(name)) {
+        currentProfile = AIRCRAFT_PROFILES.a380;
+        return;
+}
+
 
     if (
         /(747|757|767|777|787|A300|A310|A330|A340|A350|A380)/i.test(name)
@@ -1295,7 +1433,7 @@ function initialize() {
 
 
                 console.log(
-                    "GeoFS Cinematic Camera v4.0.0 BETA loaded."
+                    "GeoFS Cinematic Camera loaded."
                 );
 
 
