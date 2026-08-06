@@ -1,4 +1,4 @@
-# GeoFS Cinematic Camera
+# GeoFS Cinematic Camera v4.0.0 BETA
 
 A lightweight cinematic follow camera for **GeoFS** that transforms the standard Follow Camera into a smooth, dynamic chase camera inspired by modern flight simulators such as Microsoft Flight Simulator and X-Plane.
 
@@ -44,6 +44,10 @@ Heading, pitch, and roll changes are smoothed with rotational inertia, making th
 
 The camera spring automatically becomes tighter at higher speeds, improving stability during cruise while remaining smooth during taxi and low-speed flight.
 
+## 🛫 Aircraft Optimized (BETA)
+
+(BETA) Other aircraft types are becoming supported.
+
 ## 🪶 Lightweight & Optimized
 
 Runs efficiently using GeoFS frame callbacks with minimal performance impact.
@@ -56,11 +60,11 @@ Works seamlessly with GeoFS's built-in **Follow Camera** mode without replacing 
 
 # WARNING
 
-Currently optimized for the **Boeing 737-700**.
+Currently optimized for the **Boeing 737-700** and **Concorde**.
 
-Some other aircrafts, like the **Concorde** are functional, but may exhibit spring movement until aircraft-specific tuning is added.
+Version 4.0.0's goal is to have support for every type of aircraft, like fighter, big airlines, etc.
 
-Using other aircraft may result in incorrect camera positioning or unexpected behavior, as camera tuning has only been calibrated for the 737-700.
+Only the 737 and Concorde have been tested.
 
 ---
 
