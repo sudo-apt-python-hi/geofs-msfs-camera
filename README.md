@@ -55,11 +55,12 @@ Current supported aircraft profiles:
 * ✅ Airbus A350
 * ✅ Boeing 777-300ER
 * ✅ Airbus A380
-* ✅ Generic Light Aircraft
-* ✅ Generic Fighters
-* ✅ Generic Helicopters
-* ✅ Generic Widebody Airliners
-* ✅ Generic Narrowbody Airliners
+NOT YET ADDED:
+* Generic Light Aircraft
+* Generic Fighters
+* Generic Helicopters
+* Generic Widebody Airliners
+* Generic Narrowbody Airliners
 
 Each profile has individually tuned values for camera distance, spring behavior, inertia, orbit, FOV, motion response, and crosswind effects to better match the character of each aircraft.
 
