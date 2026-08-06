@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GeoFS Cinematic Camera v3
 // @namespace    GeoFS
-// @version      3.3.0
+// @version      4.0.0
 // @description  Lightweight cinematic follow camera for GeoFS
 // @match        https://*.geo-fs.com/*
 // @match        https://geo-fs.com/*
@@ -14,74 +14,358 @@
 
 
 //==================================================
-// SETTINGS
+// GLOBAL SETTINGS
 //==================================================
 
 const SETTINGS = {
 
     enabled: true,
+    debug: false,
 
-    // Follow camera
-    baseDistance: 42,
-    speedDistance: 12,
-
-    baseHeight: 4,
-    speedHeight: 2,
-
-    sideOffset: 0,
-
-    // Motion physics
-    accelerationInfluence: 0.030,
-    brakingInfluence: 0.045,
-    verticalInfluence: 0.030,
-
-// Dynamic FOV
-    baseFOV: 1.40,
-    maxFOVBonus: 0.20,
+    // General camera smoothing
+    smoothing: 0.10,
     fovSmoothing: 0.04,
+    orbitSmoothing: 0.06,
+    gForceSmoothing: 0.05,
 
+    // Dynamic FOV Weights
     speedFOVWeight: 0.45,
     throttleFOVWeight: 0.20,
     gForceFOVWeight: 0.25,
     verticalFOVWeight: 0.10,
-    maxDistanceBonus: 3,
 
-    // Spring
-    springStrength: 0.12,
-    springDamping: 0.84,
     // Crosswind
-    crosswindStrength: 2.0,// maximum sideways offset (meters)
-    crosswindSmoothing: 0.03,
-    maxCrosswindSpeed: 40,// m/s wind needed for full effect
-    // Cinematic turn orbit
-    bankOrbitStrength: 0.06,// meters per degree of bank
-    yawOrbitStrength: 0.20,// extra swing during quick turns
-    maxOrbit: 6,// never move farther than this
-    orbitSmoothing: 0.06,
-    // Rotation lag
-    rotationSmoothing: 0.08,
-    rollInfluence: 0.40,
-    pitchInfluence: 0.25,
-    yawInfluence: 0.35,
-    // Rotation inertia
+    maxCrosswindSpeed: 40,
+
+    // Rotation engine
     rotationStrength: 0.08,
-    rotationDamping: 0.92,
+    rotationDamping: 0.92
 
-    pitchLagStrength: 0.06,
-    rollLagStrength: 0.08,
-    yawLagStrength: 0.04,
-    // Landing
-    landingCompression: 0.9,
-    landingRebound: 0.45,
-    landingThreshold: 1.5,
-    gForceStrength: 0.7,
-    gForceSmoothing: 0.05,
-    // General smoothing
-    smoothing: 0.10,
-
-    // Debug
-    debug: false
 };
+
+
+//==================================================
+// PROFILE FACTORY
+//==================================================
+
+function createProfile(overrides = {}) {
+
+    return {
+
+        follow: {
+            distance: 42,
+            speedDistance: 12,
+
+            height: 4,
+            speedHeight: 2,
+
+            sideOffset: 0,
+
+            ...(overrides.follow || {})
+        },
+
+        motion: {
+            acceleration: 0.030,
+            braking: 0.045,
+            vertical: 0.030,
+
+            ...(overrides.motion || {})
+        },
+
+        fov: {
+            base: 1.40,
+            maxBonus: 0.20,
+            maxDistanceBonus: 3,
+
+            ...(overrides.fov || {})
+        },
+
+        spring: {
+            strength: 0.12,
+            damping: 0.84,
+
+            ...(overrides.spring || {})
+        },
+
+        crosswind: {
+            strength: 2.0,
+
+            ...(overrides.crosswind || {})
+        },
+
+        orbit: {
+            bank: 0.06,
+            yaw: 0.20,
+            max: 6,
+
+            ...(overrides.orbit || {})
+        },
+
+        rotation: {
+            pitchLag: 0.06,
+            rollLag: 0.08,
+            yawLag: 0.04,
+
+            ...(overrides.rotation || {})
+        },
+
+        landing: {
+            compression: 0.90,
+            rebound: 0.45,
+            threshold: 1.5,
+
+            ...(overrides.landing || {})
+        },
+
+        gForce: {
+            strength: 0.70,
+
+            ...(overrides.gForce || {})
+        }
+
+    };
+
+}
+
+
+//==================================================
+// AIRCRAFT PROFILES
+//==================================================
+
+const AIRCRAFT_PROFILES = {
+
+    default: createProfile(),
+
+    //--------------------------------------------------
+    // C172, Baron, DR400, Cub...
+    //--------------------------------------------------
+
+    lightAircraft: createProfile({
+
+        follow: {
+            distance: 34,
+            speedDistance: 8,
+            height: 3
+        },
+
+        spring: {
+            strength: 0.14,
+            damping: 0.82
+        }
+
+    }),
+
+    //--------------------------------------------------
+    // A220 / A320 / 737 / CRJ / E-Jets
+    //--------------------------------------------------
+
+    narrowBody: createProfile({
+
+        follow: {
+            distance: 46,
+            speedDistance: 14,
+            height: 5
+        },
+
+        spring: {
+            strength: 0.11,
+            damping: 0.87
+        }
+
+    }),
+
+    //--------------------------------------------------
+    // 747 / 767 / 777 / 787
+    // A330 / A340 / A350 / A380
+    //--------------------------------------------------
+
+    wideBody: createProfile({
+
+        follow: {
+            distance: 54,
+            speedDistance: 18,
+            height: 7,
+            speedHeight: 4
+        },
+
+        spring: {
+            strength: 0.09,
+            damping: 0.91
+        },
+
+        crosswind: {
+            strength: 1.5
+        },
+
+        orbit: {
+            bank: 0.05,
+            yaw: 0.16,
+            max: 5
+        }
+
+    }),
+
+    //--------------------------------------------------
+    // Concorde
+    //--------------------------------------------------
+
+concorde: createProfile({
+
+    follow: {
+        distance: 52,
+        speedDistance: 14,
+        height: 7,
+        speedHeight: 3
+    },
+
+    motion: {
+        acceleration: 0.018,
+        braking: 0.025,
+        vertical: 0.018
+    },
+
+    spring: {
+        strength: 0.065,
+        damping: 0.92
+    },
+
+    crosswind: {
+        strength: 1.0
+    },
+
+    orbit: {
+        bank: 0.035,
+        yaw: 0.08,
+        max: 3
+    },
+
+    rotation: {
+        pitchLag: 0.025,
+        rollLag: 0.035,
+        yawLag: 0.02
+    },
+
+    fov: {
+        maxBonus: 0.30,
+        maxDistanceBonus: 3
+    }
+
+}),
+
+    //--------------------------------------------------
+    // Fighters
+    //--------------------------------------------------
+
+    fighter: createProfile({
+
+        follow: {
+            distance: 30,
+            speedDistance: 20,
+            height: 2
+        },
+
+        spring: {
+            strength: 0.16,
+            damping: 0.80
+        },
+
+        orbit: {
+            bank: 0.09,
+            yaw: 0.30,
+            max: 8
+        },
+
+        fov: {
+            maxBonus: 0.28,
+            maxDistanceBonus: 6
+        }
+
+    }),
+
+    //--------------------------------------------------
+    // Helicopters
+    //--------------------------------------------------
+
+    helicopter: createProfile({
+
+        follow: {
+            distance: 20,
+            speedDistance: 4,
+            height: 2
+        },
+
+        spring: {
+            strength: 0.18,
+            damping: 0.78
+        }
+
+    })
+
+};
+
+
+//==================================================
+// ACTIVE PROFILE
+//==================================================
+
+let currentProfile = AIRCRAFT_PROFILES.default;
+
+
+//==================================================
+// AIRCRAFT DETECTION
+//==================================================
+
+function updateAircraftProfile() {
+
+    const name =
+        geofs.aircraft.instance.aircraftRecord?.name || "";
+
+    if (
+        /(737|A220|A318|A319|A320|A321|CRJ|E170|E175|E190|E195)/i.test(name)
+    ) {
+
+        currentProfile = AIRCRAFT_PROFILES.narrowBody;
+        return;
+
+    }
+
+    if (
+        /(747|757|767|777|787|A300|A310|A330|A340|A350|A380)/i.test(name)
+    ) {
+
+        currentProfile = AIRCRAFT_PROFILES.wideBody;
+        return;
+
+    }
+
+    if (/concorde/i.test(name)) {
+
+        currentProfile = AIRCRAFT_PROFILES.concorde;
+        return;
+
+    }
+
+    if (
+        /(F-|MiG|Rafale|Typhoon|Gripen|SU-|F16|F18)/i.test(name)
+    ) {
+
+        currentProfile = AIRCRAFT_PROFILES.fighter;
+        return;
+
+    }
+
+    if (
+        /(Bell|UH-|EC|Helicopter|R22|R44|H125|H145)/i.test(name)
+    ) {
+
+        currentProfile = AIRCRAFT_PROFILES.helicopter;
+        return;
+
+    }
+
+    currentProfile = AIRCRAFT_PROFILES.lightAircraft;
+
+}
 
 
 //==================================================
@@ -90,61 +374,64 @@ const SETTINGS = {
 
 const state = {
 
-    // spring position
+    // Spring position
     x: 0,
     y: 0,
     z: 0,
 
-    // spring velocity
+    // Spring velocity
     vx: 0,
     vy: 0,
     vz: 0,
 
-    // desired camera values
+    // Camera values
+    distance: currentProfile.follow.distance,
+    height: currentProfile.follow.height,
 
-    targetDistance: SETTINGS.baseDistance,
-    targetHeight: SETTINGS.baseHeight,
+    targetDistance: currentProfile.follow.distance,
+    targetHeight: currentProfile.follow.height,
 
-    gForceOffset: 0,
-
-    fov: SETTINGS.baseFOV,
-    targetFOV: SETTINGS.baseFOV,
-
+    // FOV
     baseFOV: null,
+    fov: currentProfile.fov.base,
+    targetFOV: currentProfile.fov.base,
     lastAppliedFOV: null,
+
     distanceBonus: 0,
 
-    // smoothed camera values
-
-    distance: SETTINGS.baseDistance,
-    height: SETTINGS.baseHeight,
-    // Crosswind drift
+    // Crosswind
     cameraOrbit: 0,
     targetCameraOrbit: 0,
-    turnOrbit: 0,
-    // Rotation lag
-heading: 0,
-pitch: 0,
-roll: 0,
-    // Previous aircraft attitude
-lastHeading: 0,
-lastPitch: 0,
-lastRoll: 0,
+
+    // G force
+    gForceOffset: 0,
+
+    // Aircraft attitude
+    heading: 0,
+    pitch: 0,
+    roll: 0,
+
+    lastHeading: 0,
+    lastPitch: 0,
+    lastRoll: 0,
+
+    // Dynamic spring
+    dynamicSpringStrength: currentProfile.spring.strength,
+    dynamicSpringDamping: currentProfile.spring.damping,
+
     // Landing
-wasGrounded: true,
-landingVelocity: 0,
+    wasGrounded: true,
+    landingVelocity: 0,
 
-dynamicSpringStrength: SETTINGS.springStrength,
-dynamicSpringDamping: SETTINGS.springDamping,
+    // Inertial rotation
+    rotationX: 0,
+    rotationY: 0,
+    rotationZ: 0,
 
-// Inertial offsets
-rotationX: 0,
-rotationY: 0,
-rotationZ: 0,
+    targetHeading: 0,
+    targetPitch: 0,
+    targetRoll: 0
 
-targetHeading: 0,
-targetPitch: 0,
-targetRoll: 0
 };
 
 
@@ -152,103 +439,6 @@ targetRoll: 0
 // HELPERS
 //==================================================
 
-function updateCrosswind(data) {
-
-    // Wind contribution
-    const windAngle =
-        (data.relativeWind || 0) * Math.PI / 180;
-
-    const crosswind =
-        Math.sin(windAngle);
-
-    const windStrength =
-        clamp(
-            (data.windSpeed || 0) /
-            SETTINGS.maxCrosswindSpeed,
-            0,
-            1
-        );
-
-    // Aircraft attitude
-    const htr =
-        geofs.aircraft.instance.object3d.htr;
-
-    const bank = htr[2];
-
-    // Heading rate
-    let headingRate =
-        htr[0] - state.lastHeading;
-
-    if (headingRate > 180) headingRate -= 360;
-    if (headingRate < -180) headingRate += 360;
-
-    // Orbit contributions
-    const windOrbit =
-        -crosswind *
-        windStrength *
-        SETTINGS.crosswindStrength;
-
-    const bankOrbit =
-        bank *
-        SETTINGS.bankOrbitStrength;
-
-    const yawOrbit =
-        headingRate *
-        SETTINGS.yawOrbitStrength;
-
-    state.targetCameraOrbit =
-        clamp(
-            windOrbit +
-            bankOrbit +
-            yawOrbit,
-            -SETTINGS.maxOrbit,
-             SETTINGS.maxOrbit
-        );
-
-    state.cameraOrbit =
-        lerp(
-            state.cameraOrbit,
-            state.targetCameraOrbit,
-            SETTINGS.orbitSmoothing
-        );
-}
-    function updateRotationLag() {
-
-    const htr = geofs.aircraft.instance.object3d.htr;
-
-    const heading = htr[0];
-    const pitch = htr[1];
-    const roll = htr[2];
-
-    let headingRate = heading - state.lastHeading;
-
-    // Handle 359° -> 0° wraparound
-    if (headingRate > 180) headingRate -= 360;
-    if (headingRate < -180) headingRate += 360;
-
-    const pitchRate = pitch - state.lastPitch;
-    const rollRate = roll - state.lastRoll;
-
-    state.lastHeading = heading;
-    state.lastPitch = pitch;
-    state.lastRoll = roll;
-
-    state.rotationX +=
-        (-rollRate * SETTINGS.rollLagStrength - state.rotationX) *
-        SETTINGS.rotationStrength;
-
-    state.rotationY +=
-        (headingRate * SETTINGS.yawLagStrength - state.rotationY) *
-        SETTINGS.rotationStrength;
-
-    state.rotationZ +=
-        (-pitchRate * SETTINGS.pitchLagStrength - state.rotationZ) *
-        SETTINGS.rotationStrength;
-
-    state.rotationX *= SETTINGS.rotationDamping;
-    state.rotationY *= SETTINGS.rotationDamping;
-    state.rotationZ *= SETTINGS.rotationDamping;
-}
 
 function clamp(value, min, max) {
 
@@ -295,16 +485,22 @@ function updateSpeed(data) {
             1
         );
 
-    const curve = speed * speed;
+    const curve =
+        speed * speed;
+
 
     state.targetDistance =
-        SETTINGS.baseDistance +
-        curve * SETTINGS.speedDistance +
+        currentProfile.follow.distance +
+        curve *
+        currentProfile.follow.speedDistance +
         state.distanceBonus;
 
+
     state.targetHeight =
-        SETTINGS.baseHeight +
-        curve * SETTINGS.speedHeight;
+        currentProfile.follow.height +
+        curve *
+        currentProfile.follow.speedHeight;
+
 
     state.distance =
         lerp(
@@ -312,6 +508,7 @@ function updateSpeed(data) {
             state.targetDistance,
             SETTINGS.smoothing
         );
+
 
     state.height =
         lerp(
@@ -321,21 +518,28 @@ function updateSpeed(data) {
         );
 
 }
+
+
+//==================================================
+// DYNAMIC FOV
+//==================================================
+
 function updateFOV(data) {
 
-    // User changed FOV?
+
+    // Detect manual FOV changes
     if (
         Math.abs(
             geofs.camera.currentFOV -
             (state.lastAppliedFOV ?? state.fov)
         ) > 0.02
     ) {
-        state.baseFOV = geofs.camera.currentFOV;
+
+        state.baseFOV =
+            geofs.camera.currentFOV;
+
     }
 
-    // --------------------------
-    // Speed
-    // --------------------------
 
     const speed =
         clamp(
@@ -344,9 +548,6 @@ function updateFOV(data) {
             1
         );
 
-    // --------------------------
-    // Throttle
-    // --------------------------
 
     const throttle =
         clamp(
@@ -355,9 +556,6 @@ function updateFOV(data) {
             1
         );
 
-    // --------------------------
-    // G Force
-    // --------------------------
 
     const g =
         clamp(
@@ -366,9 +564,6 @@ function updateFOV(data) {
             1
         );
 
-    // --------------------------
-    // Vertical speed
-    // --------------------------
 
     const vertical =
         clamp(
@@ -381,44 +576,65 @@ function updateFOV(data) {
             1
         );
 
-    // --------------------------
-    // Combine everything
-    // --------------------------
 
     const energy =
 
-        speed * SETTINGS.speedFOVWeight +
+        speed *
+        SETTINGS.speedFOVWeight +
 
-        throttle * SETTINGS.throttleFOVWeight +
+        throttle *
+        SETTINGS.throttleFOVWeight +
 
-        g * SETTINGS.gForceFOVWeight +
+        g *
+        SETTINGS.gForceFOVWeight +
 
-        vertical * SETTINGS.verticalFOVWeight;
+        vertical *
+        SETTINGS.verticalFOVWeight;
+
+
 
     state.distanceBonus =
-    lerp(
-        state.distanceBonus,
-        energy * SETTINGS.maxDistanceBonus,
-        SETTINGS.fovSmoothing
-    );
+        lerp(
+            state.distanceBonus,
+            energy *
+            currentProfile.fov.maxDistanceBonus,
+            SETTINGS.fovSmoothing
+        );
+
 
     state.targetFOV =
+
         state.baseFOV +
+
         energy *
-        SETTINGS.maxFOVBonus;
+        currentProfile.fov.maxBonus;
+
+
 
     state.fov =
+
         lerp(
             state.fov,
             state.targetFOV,
             SETTINGS.fovSmoothing
         );
 
+
     geofs.camera.setFOV(state.fov);
 
-    state.lastAppliedFOV = state.fov;
+
+    state.lastAppliedFOV =
+        state.fov;
+
 }
-    function updateDynamicSpring(data) {
+
+
+//==================================================
+// DYNAMIC SPRING
+//==================================================
+
+function updateDynamicSpring(data) {
+
 
     const speed =
         clamp(
@@ -427,22 +643,28 @@ function updateFOV(data) {
             1
         );
 
-    // Make the curve stronger
-    const curve = speed * speed;
+
+    const curve =
+        speed * speed;
+
 
     state.dynamicSpringStrength =
         lerp(
-            0.09,
-            0.18,
+            currentProfile.spring.strength,
+            currentProfile.spring.strength * 1.25,
             curve
         );
 
-    state.dynamicSpringDamping =
+
+    state.dynamicSpringDamping = clamp(
         lerp(
-            0.80,
-            0.92,
+            currentProfile.spring.damping - 0.05,
+            currentProfile.spring.damping + 0.05,
             curve
-        );
+        ),
+        0,
+        0.995
+    );
 
 }
 
@@ -453,40 +675,76 @@ function updateFOV(data) {
 
 function updateMotion() {
 
+
     const accel =
+
         geofs.aircraft.instance
         ?.rigidBody
         ?.v_acceleration ||
-        [0, 0, 0];
+
+        [0,0,0];
+
 
     const targetX =
+
         accel[1] *
-        SETTINGS.accelerationInfluence;
+        currentProfile.motion.acceleration;
+
+
 
     const targetY =
+
         -accel[0] *
-        SETTINGS.brakingInfluence;
+        currentProfile.motion.braking;
+
+
 
     const targetZ =
-        accel[2] *
-        SETTINGS.verticalInfluence;
 
-    updateSpring("x", "vx", targetX);
-    updateSpring("y", "vy", targetY);
-    updateSpring("z", "vz", targetZ);
+        accel[2] *
+        currentProfile.motion.vertical;
+
+
+
+    updateSpring(
+        "x",
+        "vx",
+        targetX
+    );
+
+
+    updateSpring(
+        "y",
+        "vy",
+        targetY
+    );
+
+
+    updateSpring(
+        "z",
+        "vz",
+        targetZ
+    );
 
 }
-    //==================================================
-// G-FORCE
+
+
+//==================================================
+// G FORCE
 //==================================================
 
 function updateGForce(data) {
 
+
     const target =
+
         -(data.loadFactor - 1) *
-        SETTINGS.gForceStrength;
+        currentProfile.gForce.strength;
+
+
 
     state.gForceOffset =
+
         lerp(
             state.gForceOffset,
             target,
@@ -494,145 +752,489 @@ function updateGForce(data) {
         );
 
 }
-    function updateLanding(data) {
 
-    const grounded = data.groundContact;
 
-    // Detect first frame of touchdown
-    if (!state.wasGrounded && grounded) {
+//==================================================
+// LANDING
+//==================================================
+
+function updateLanding(data) {
+
+
+    const grounded =
+        data.groundContact;
+
+
+
+    if (
+        !state.wasGrounded &&
+        grounded
+    ) {
+
 
         const verticalSpeed =
+
             Math.abs(
                 geofs.aircraft.instance
                 ?.rigidBody
                 ?.velocity?.[2] || 0
             );
 
-        if (verticalSpeed > SETTINGS.landingThreshold) {
+
+
+        if (
+            verticalSpeed >
+            currentProfile.landing.threshold
+        ) {
+
 
             state.vz -=
+
                 verticalSpeed *
-                SETTINGS.landingCompression;
+                currentProfile.landing.compression;
 
         }
 
     }
 
-    state.wasGrounded = grounded;
+
+    state.wasGrounded =
+        grounded;
 
 }
 //==================================================
 // CAMERA CONTROLLER
 //==================================================
 
+//==================================================
+// CROSSWIND / TURN ORBIT
+//==================================================
+
+function updateCrosswind(data) {
+
+
+    const windAngle =
+
+        (data.relativeWind || 0) *
+        Math.PI / 180;
+
+
+    const crosswind =
+
+        Math.sin(windAngle);
+
+
+
+    const windStrength =
+
+        clamp(
+            (data.windSpeed || 0) /
+            SETTINGS.maxCrosswindSpeed,
+            0,
+            1
+        );
+
+
+
+    const htr =
+
+        geofs.aircraft.instance
+        .object3d
+        .htr;
+
+
+
+    const bank =
+        htr[2];
+
+
+
+    let headingRate =
+
+        htr[0] -
+        state.lastHeading;
+
+
+
+    if (headingRate > 180)
+        headingRate -= 360;
+
+
+    if (headingRate < -180)
+        headingRate += 360;
+
+
+
+    const windOrbit =
+
+        -crosswind *
+        windStrength *
+        currentProfile.crosswind.strength;
+
+
+
+    const bankOrbit =
+
+        bank *
+        currentProfile.orbit.bank;
+
+
+
+    const yawOrbit =
+
+        headingRate *
+        currentProfile.orbit.yaw;
+
+
+
+    state.targetCameraOrbit =
+
+        clamp(
+
+            windOrbit +
+            bankOrbit +
+            yawOrbit,
+
+            -currentProfile.orbit.max,
+             currentProfile.orbit.max
+
+        );
+
+
+
+    state.cameraOrbit =
+
+        lerp(
+
+            state.cameraOrbit,
+
+            state.targetCameraOrbit,
+
+            SETTINGS.orbitSmoothing
+
+        );
+
+}
+
+
+
+//==================================================
+// ROTATION LAG
+//==================================================
+
+function updateRotationLag() {
+
+
+    const htr =
+
+        geofs.aircraft.instance
+        .object3d
+        .htr;
+
+
+
+    const heading =
+        htr[0];
+
+    const pitch =
+        htr[1];
+
+    const roll =
+        htr[2];
+
+
+
+    let headingRate =
+
+        heading -
+        state.lastHeading;
+
+
+
+    if (headingRate > 180)
+        headingRate -= 360;
+
+
+    if (headingRate < -180)
+        headingRate += 360;
+
+
+
+    const pitchRate =
+
+        pitch -
+        state.lastPitch;
+
+
+
+    const rollRate =
+
+        roll -
+        state.lastRoll;
+
+
+
+    state.lastHeading =
+        heading;
+
+    state.lastPitch =
+        pitch;
+
+    state.lastRoll =
+        roll;
+
+
+
+    state.rotationX +=
+
+        (
+            -rollRate *
+            currentProfile.rotation.rollLag -
+
+            state.rotationX
+
+        ) *
+        SETTINGS.rotationStrength;
+
+
+
+    state.rotationY +=
+
+        (
+            headingRate *
+            currentProfile.rotation.yawLag -
+
+            state.rotationY
+
+        ) *
+        SETTINGS.rotationStrength;
+
+
+
+    state.rotationZ +=
+
+        (
+            -pitchRate *
+            currentProfile.rotation.pitchLag -
+
+            state.rotationZ
+
+        ) *
+        SETTINGS.rotationStrength;
+
+
+
+    state.rotationX *=
+        SETTINGS.rotationDamping;
+
+    state.rotationY *=
+        SETTINGS.rotationDamping;
+
+    state.rotationZ *=
+        SETTINGS.rotationDamping;
+
+}
+
+
+
+//==================================================
+// APPLY CAMERA
+//==================================================
+
 function applyCamera() {
 
-    const follow = geofs.camera?.definitions?.follow;
+
+    const follow =
+
+        geofs.camera
+        ?.definitions
+        ?.follow;
+
+
 
     if (!follow)
         return;
+
+
+
     if (
-    !follow.offsets ||
-    !follow.offsets.current
-) return;
+        !follow.offsets ||
+        !follow.offsets.current
+    )
+        return;
 
-    // Smooth distance
-    follow.distance = lerp(
-        follow.distance,
-        state.distance,
-        SETTINGS.smoothing
-    );
 
-    // Camera position
+
+    follow.distance =
+
+        lerp(
+
+            follow.distance,
+
+            state.distance,
+
+            SETTINGS.smoothing
+
+        );
+
+
 
     follow.offsets.current[0] =
+
         state.x +
-        SETTINGS.sideOffset +
-        state.cameraOrbit; +
+
+        currentProfile.follow.sideOffset +
+
+        state.cameraOrbit +
+
         state.rotationX;
 
+
+
     follow.offsets.current[1] =
+
         state.y +
+
         state.rotationY;
 
+
+
     follow.offsets.current[2] =
-        state.height + state.z +
+
+        state.height +
+
+        state.z +
+
         state.rotationZ +
+
         state.gForceOffset;
 
 }
 
 
+
 //==================================================
-// MAIN UPDATE
+// MAIN CAMERA UPDATE
 //==================================================
 
 function updateCamera() {
+
+
     try {
 
-    if (!SETTINGS.enabled)
-        return;
 
-    if (!window.geofs)
-        return;
+        if (!SETTINGS.enabled)
+            return;
 
-    if (!geofs.camera)
-        return;
 
-    if (!geofs.aircraft?.instance)
-        return;
+        if (!window.geofs)
+            return;
 
-    if (geofs.camera.currentModeName !== "follow")
-        return;
 
-    const data = geofs.animation.values;
+        if (!geofs.camera)
+            return;
 
-    if (!data)
-        return;
 
-    updateSpeed(data);
+        if (!geofs.aircraft?.instance)
+            return;
 
-    updateFOV(data);
 
-    updateDynamicSpring(data);
 
-    updateRotationLag();
+        if (
+            geofs.camera.currentModeName !==
+            "follow"
+        )
+            return;
 
-    updateMotion();
 
-    updateLanding(data);
 
-    updateCrosswind(data);
+        const data =
+            geofs.animation.values;
 
-    applyCamera();
 
-}
-    catch (e) {
-        console.error("Camera error:", e);
+
+        if (!data)
+            return;
+
+
+
+        updateAircraftProfile();
+
+
+
+        updateSpeed(data);
+
+        updateFOV(data);
+
+        updateDynamicSpring(data);
+
+        updateRotationLag();
+
+        updateMotion();
+
+        updateGForce(data);
+
+        updateLanding(data);
+
+        updateCrosswind(data);
+
+        applyCamera();
+
+
+
     }
+
+    catch(e) {
+
+        console.error(
+            "GeoFS Cinematic Camera error:",
+            e
+        );
+
+    }
+
+
 }
+
 
 
 //==================================================
-// CAMERA RESET
+// RESET
 //==================================================
 
 function resetCamera() {
 
+
     const follow =
-        geofs.camera?.definitions?.follow;
+
+        geofs.camera
+        ?.definitions
+        ?.follow;
+
+
 
     if (!follow)
         return;
 
-    follow.distance =
-        SETTINGS.baseDistance;
 
-    follow.offsets.current[0] = 0;
-    follow.offsets.current[1] = 0;
-    follow.offsets.current[2] = 0;
+
+    follow.distance =
+        currentProfile.follow.distance;
+
+
+
+    if (follow.offsets?.current) {
+
+
+        follow.offsets.current[0] = 0;
+        follow.offsets.current[1] = 0;
+        follow.offsets.current[2] = 0;
+
+    }
+
 
 }
+
 
 
 //==================================================
@@ -641,31 +1243,74 @@ function resetCamera() {
 
 function initialize() {
 
-    console.log("GeoFS Cinematic Camera v3 loading...");
 
-    const wait = setInterval(() => {
+    console.log(
+        "GeoFS Cinematic Camera loading..."
+    );
 
-        if (
-            window.geofs &&
-            geofs.api &&
-            geofs.camera?.definitions?.follow?.offsets?.current &&
-            geofs.aircraft?.instance
-        ) {
 
-            clearInterval(wait);
-            state.baseFOV = geofs.camera.currentFOV;
-            state.fov = state.baseFOV;
-            geofs.api.addFrameCallback(updateCamera);
 
-            console.log("GeoFS Cinematic Camera v3 loaded.");
+    const wait =
 
-        }
+        setInterval(() => {
 
-    }, 500);
+
+
+            if (
+
+                window.geofs &&
+
+                geofs.api &&
+
+                geofs.camera
+                ?.definitions
+                ?.follow
+                ?.offsets
+                ?.current &&
+
+                geofs.aircraft?.instance
+
+            ) {
+
+
+                clearInterval(wait);
+
+
+
+                state.baseFOV =
+
+                    geofs.camera.currentFOV;
+
+
+
+                state.fov =
+                    state.baseFOV;
+
+
+
+                geofs.api.addFrameCallback(
+                    updateCamera
+                );
+
+
+
+                console.log(
+                    "GeoFS Cinematic Camera v4.0.0 BETA loaded."
+                );
+
+
+            }
+
+
+        },500);
+
 
 }
 
+
+
 initialize();
+
 
 
 //==================================================
@@ -676,5 +1321,4 @@ window.addEventListener(
     "beforeunload",
     resetCamera
 );
-
 })();
