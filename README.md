@@ -2,7 +2,7 @@
 
 A lightweight cinematic follow camera for **GeoFS** that transforms the standard Follow Camera into a smooth, dynamic chase camera inspired by modern flight simulators such as Microsoft Flight Simulator and X-Plane.
 
-Designed to feel like the aircraft is being filmed by a helicopter or drone rather than having a camera rigidly attached to it.
+Designed to make the camera feel like it's being flown by a helicopter or drone rather than being rigidly attached to the aircraft.
 
 ---
 
@@ -14,11 +14,11 @@ A physics-driven spring system gives the camera realistic weight and inertia, cr
 
 ## ✈️ Dynamic Camera Distance
 
-The camera automatically moves farther away as the aircraft gains speed or performs energetic maneuvers, enhancing the sensation of speed and scale.
+The camera automatically adjusts its distance based on aircraft speed and energy, making fast aircraft feel faster while keeping slower aircraft closer and more immersive.
 
 ## 🔍 Dynamic Cinematic FOV
 
-The field of view smoothly adjusts based on the aircraft's energy (speed, throttle, G-forces, and vertical speed), making takeoffs, climbs, turns, and landings feel more dramatic while still respecting your preferred GeoFS FOV.
+The field of view smoothly changes based on speed, throttle, G-forces, and vertical motion while still respecting your preferred GeoFS FOV.
 
 ## 🌬️ Crosswind Camera Drift
 
@@ -38,33 +38,58 @@ Firm landings generate a subtle camera compression and rebound, giving touchdown
 
 ## ⚙️ Rotation Inertia
 
-Heading, pitch, and roll changes are smoothed with rotational inertia, making the camera behave like a stabilized camera rig rather than instantly matching every aircraft movement.
+Heading, pitch, and roll changes are smoothed with rotational inertia, making the camera behave like a stabilized camera rig instead of instantly matching every aircraft movement.
 
 ## 🌪️ Dynamic Spring Physics
 
-The camera spring automatically becomes tighter at higher speeds, improving stability during cruise while remaining smooth during taxi and low-speed flight.
+The camera spring automatically adapts with speed, remaining responsive during taxi and low-speed flight while becoming more stable at cruise speeds.
 
-## 🛫 Aircraft Optimized (BETA)
+## ✈️ Aircraft-Specific Camera Profiles (NEW)
 
-(BETA) Other aircraft types are becoming supported.
+The camera now automatically detects supported aircraft and applies custom tuning designed specifically for each one.
+
+Current supported aircraft profiles:
+
+* ✅ Boeing 737-700
+* ✅ Concorde
+* ✅ Airbus A350
+* ✅ Boeing 777-300ER
+* ✅ Airbus A380
+* ✅ Generic Light Aircraft
+* ✅ Generic Fighters
+* ✅ Generic Helicopters
+* ✅ Generic Widebody Airliners
+* ✅ Generic Narrowbody Airliners
+
+Each profile has individually tuned values for camera distance, spring behavior, inertia, orbit, FOV, motion response, and crosswind effects to better match the character of each aircraft.
 
 ## 🪶 Lightweight & Optimized
 
 Runs efficiently using GeoFS frame callbacks with minimal performance impact.
 
-## 🔄 Follow Camera Integration
+## 🔄 Seamless Follow Camera Integration
 
-Works seamlessly with GeoFS's built-in **Follow Camera** mode without replacing the simulator's existing camera system.
+Works directly with GeoFS's built-in **Follow Camera** mode without replacing or modifying the simulator's camera system.
 
 ---
 
-# WARNING
+# Tweaking Camera Values
 
-Currently optimized for the **Boeing 737-700** and **Concorde**.
+Every aircraft profile can be customized by editing its values inside the script.
 
-Version 4.0.0's goal is to have support for every type of aircraft, like fighter, big airlines, etc.
+Each profile contains sections such as:
 
-Only the 737 and Concorde have been tested.
+* **follow** — Camera distance, height, and speed scaling
+* **motion** — Camera movement from acceleration, braking, and vertical motion
+* **spring** — Camera stiffness and damping
+* **crosswind** — Crosswind camera drift strength
+* **orbit** — Banking and turning behavior
+* **rotation** — Rotational inertia
+* **fov** — Dynamic FOV and distance expansion
+* **landing** — Landing compression and rebound
+* **gForce** — Camera movement from aircraft G-loading
+
+Feel free to experiment with the numbers to create your own camera style. Small changes (around 0.01–0.03) can noticeably affect how the camera behaves, so it's usually best to adjust values gradually.
 
 ---
 
@@ -77,7 +102,7 @@ There are two ways to use the script.
 1. Install the **Tampermonkey** browser extension.
 2. Create a new userscript.
 3. Delete the default template.
-4. Copy the contents of the latest `GeoFS Cinematic Camera` script.
+4. Copy the latest `GeoFS Cinematic Camera` script.
 5. Paste it into the new userscript.
 6. Save the script (`Ctrl + S`).
 7. Open or reload GeoFS.
@@ -108,7 +133,7 @@ The script remains active until the page is refreshed.
 2. Switch to **Follow Camera**.
 3. Fly normally.
 
-The camera will automatically respond to:
+The camera automatically responds to:
 
 * Airspeed
 * Throttle
@@ -117,9 +142,10 @@ The camera will automatically respond to:
 * Turn rate
 * G-forces
 * Vertical speed
-* Landings
+* Landing impacts
+* Aircraft type
 
-No additional setup or configuration is required.
+No additional setup is required.
 
 ---
 
@@ -147,8 +173,9 @@ If you're using the browser console, simply paste the newest version again after
 
 # Known Issues
 
-* When the crosswind direction rapidly changes from one side of the aircraft to the other, the camera may briefly spring sideways before settling.
-* Camera tuning is currently optimized for the Boeing 737-700 and may require adjustment for other aircraft.
+* Aircraft profile tuning is still being refined and may continue to improve between releases.
+* Some community aircraft may fall back to a generic aircraft profile if no dedicated profile exists.
+* Camera behavior may vary slightly as GeoFS physics continue to evolve.
 
 ---
 
@@ -156,12 +183,13 @@ If you're using the browser console, simply paste the newest version again after
 
 Planned future improvements include:
 
-* Additional aircraft support
-* Custom camera presets
+* More aircraft-specific camera profiles
 * User-configurable settings menu
+* Optional camera presets
 * Improved horizon stabilization
-* Optional cinematic camera modes
-* Camera shake profiles for different aircraft
+* Additional cinematic camera modes
+* Per-aircraft camera customization
+* Easier profile editing without modifying the source code
 
 ---
 
